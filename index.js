@@ -27,6 +27,27 @@ const userSchema = new mongoose.Schema({
 });
 const User = mongoose.model("User", userSchema);
 
+const facultySchema = new mongoose.Schema({
+  facultyName: String,
+  facultyNumber: String,
+  email: String,
+  phoneNumber: String,
+});
+const Faculty = mongoose.model("Faculty", facultySchema);
+
+const SubjectSchema = new mongoose.Schema({
+  subjectName: String,
+  subjectcode: String,
+});
+
+const Subject = mongoose.model("Subject", SubjectSchema);
+
+//year and semester schema
+const semesterSchema = new mongoose.Schema({
+  semester: String,
+  academicYear: String,
+});
+const Semester = mongoose.model("Semester", semesterSchema);
 // Routes
 app.post("/register", (req, res) => {
   const { name, email, password } = req.body;
@@ -69,7 +90,83 @@ app.post("/login", (req, res) => {
     });
 });
 
-const PORT = process.env.PORT || 9000;
+app.post("/addFaculty", (req, res) => {
+  const { facultyName, facultyNumber, email, phoneNumber } = req.body;
+  const newFaculty = new Faculty({
+    facultyName,
+    facultyNumber,
+    email,
+    phoneNumber,
+  });
+  newFaculty
+    .save()
+    .then(() => {
+      res.send({ message: "Faculty added successfully" });
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+app.get("/faculty", (req, res) => {
+  Faculty.find()
+    .then((faculty) => {
+      res.send(faculty);
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+app.post("/addsubject", (req, res) => {
+  const { subjectName, subjectcode } = req.body;
+  const newSubject = new Subject({
+    subjectName,
+    subjectcode,
+  });
+  newSubject
+    .save()
+    .then(() => {
+      res.send({ message: "subject added successfully" });
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+app.get("/subject", (req, res) => {
+  Subject.find()
+    .then((subject) => {
+      res.send(subject);
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+//sem year
+app.post("/addsemester", (req, res) => {
+  const { semester, academicYear } = req.body;
+  const newSemester = new Semester({
+    semester,
+    academicYear,
+  });
+  newSemester
+    .save()
+    .then(() => {
+      res.send({ message: "Semester added successfully" });
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+app.get("/sem", (req, res) => {
+  Seme.find()
+    .then((semesters) => {
+      res.send(semesters);
+    })
+    .catch((err) => {
+      res.status(500).send(err);
+    });
+});
+
+const PORT = process.env.PORT || 9002;
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
 });
