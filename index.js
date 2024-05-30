@@ -149,6 +149,7 @@ app.post("/generateTimetable", async (req, res) => {
       .status(400)
       .send({ message: "Semester and division are required" });
   }
+
   try {
     const existingTimetable = await Timetable.findOne({ semester, division });
     if (existingTimetable) {
@@ -156,6 +157,7 @@ app.post("/generateTimetable", async (req, res) => {
         message: "Timetable already generated for this semester and division",
       });
     }
+
     const subjects = await Subject.find({ semester, division });
     const faculties = await Faculty.find();
     if (!subjects.length || !faculties.length) {
@@ -163,6 +165,7 @@ app.post("/generateTimetable", async (req, res) => {
         .status(400)
         .send({ message: "Insufficient subjects or faculties available" });
     }
+
     const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
     const timeSlots = [
       "09:00-10:00",
@@ -172,23 +175,41 @@ app.post("/generateTimetable", async (req, res) => {
       "14:00-15:00",
       "15:00-16:00",
     ];
-    const timetable = [];
 
-    days.forEach((day) => {
-      timeSlots.forEach((slot) => {
-        const randomSubject = _.sample(subjects);
-        const randomFaculty = _.sample(faculties);
-        timetable.push({
-          subjectName: randomSubject.subjectName,
-          facultyName: randomFaculty.facultyName,
-          day,
+    let timetable = [];
+    let subjectIndex = 0;
+    let facultyIndex = 0;
+
+    for (const day of days) {
+      for (const slot of timeSlots) {
+        if (subjectIndex >= subjects.length) subjectIndex = 0;
+        if (facultyIndex >= faculties.length) facultyIndex = 0;
+
+        const subject = subjects[subjectIndex++];
+        const faculty = faculties[facultyIndex++];
+
+        const isFacultyAvailable = await Timetable.findOne({
+          facultyName: faculty.facultyName,
+          day: day,
           startTime: slot.split("-")[0],
           endTime: slot.split("-")[1],
-          semester,
-          division,
         });
-      });
-    });
+
+        if (isFacultyAvailable) {
+          facultyIndex--; // Retry with the next faculty
+        } else {
+          timetable.push({
+            subjectName: subject.subjectName,
+            facultyName: faculty.facultyName,
+            day: day,
+            startTime: slot.split("-")[0],
+            endTime: slot.split("-")[1],
+            semester: semester,
+            division: division,
+          });
+        }
+      }
+    }
 
     await Timetable.insertMany(timetable);
     res.send({ message: "Timetable generated successfully" });
