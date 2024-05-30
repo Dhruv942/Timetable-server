@@ -1,10 +1,10 @@
 import express from "express";
 import cors from "cors";
 import mongoose from "mongoose";
+import _ from "lodash";
 
 const app = express();
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
 app.use(cors());
 
 mongoose
@@ -12,14 +12,9 @@ mongoose
     useNewUrlParser: true,
     useUnifiedTopology: true,
   })
-  .then(() => {
-    console.log("DB connected");
-  })
-  .catch((err) => {
-    console.error("Error connecting to database:", err);
-  });
+  .then(() => console.log("DB connected"))
+  .catch((err) => console.error("Error connecting to database:", err));
 
-// Schema
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -35,63 +30,69 @@ const facultySchema = new mongoose.Schema({
 });
 const Faculty = mongoose.model("Faculty", facultySchema);
 
-const SubjectSchema = new mongoose.Schema({
+const subjectSchema = new mongoose.Schema({
   subjectName: String,
-  subjectcode: String,
-});
-
-const Subject = mongoose.model("Subject", SubjectSchema);
-
-//year and semester schema
-const semesterSchema = new mongoose.Schema({
+  subjectCode: String,
   semester: String,
-  academicYear: String,
+  division: String, // Corrected spelling from 'divison' to 'division'
 });
-const Semester = mongoose.model("Semester", semesterSchema);
-// Routes
+const Subject = mongoose.model("Subject", subjectSchema);
+
+const timetableSchema = new mongoose.Schema({
+  subjectName: String,
+  facultyName: String,
+  day: String,
+  startTime: String,
+  endTime: String,
+  semester: String,
+  division: String,
+});
+const Timetable = mongoose.model("Timetable", timetableSchema);
+
 app.post("/register", (req, res) => {
   const { name, email, password } = req.body;
-  User.findOne({ email: email })
+  if (!name || !email || !password) {
+    return res.status(400).send({ message: "All fields are required" });
+  }
+  User.findOne({ email })
     .then((user) => {
       if (user) {
-        res.send({ message: "User already registered" });
+        res.status(400).send({ message: "User already registered" });
       } else {
-        const newUser = new User({
-          name,
-          email,
-          password,
-        });
-        return newUser.save();
+        const newUser = new User({ name, email, password });
+        newUser
+          .save()
+          .then(() =>
+            res.send({ message: "Successfully Registered, Please login now." })
+          );
       }
     })
-    .then(() => {
-      res.send({ message: "Successfully Registered, Please login now." });
-    })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
+    .catch((err) => res.status(500).send(err));
 });
 
 app.post("/login", (req, res) => {
   const { email, password } = req.body;
-  User.findOne({ email: email })
+  if (!email || !password) {
+    return res.status(400).send({ message: "Email and password are required" });
+  }
+  User.findOne({ email })
     .then((user) => {
       if (!user) {
-        return res.send({ message: "User not registered" });
-      }
-      if (password === user.password) {
-        res.send({ message: "Login Successful", user: user });
+        res.status(400).send({ message: "User not registered" });
+      } else if (password === user.password) {
+        res.send({ message: "Login Successful", user });
       } else {
-        res.send({ message: "Password didn't match" });
+        res.status(400).send({ message: "Password didn't match" });
       }
     })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
+    .catch((err) => res.status(500).send(err));
 });
 
 app.post("/addFaculty", (req, res) => {
   const { facultyName, facultyNumber, email, phoneNumber } = req.body;
+  if (!facultyName || !facultyNumber || !email || !phoneNumber) {
+    return res.status(400).send({ message: "All fields are required" });
+  }
   const newFaculty = new Faculty({
     facultyName,
     facultyNumber,
@@ -100,73 +101,106 @@ app.post("/addFaculty", (req, res) => {
   });
   newFaculty
     .save()
-    .then(() => {
-      res.send({ message: "Faculty added successfully" });
-    })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
+    .then(() => res.send({ message: "Faculty added successfully" }))
+    .catch((err) => res.status(500).send(err));
 });
+
 app.get("/faculty", (req, res) => {
   Faculty.find()
-    .then((faculty) => {
-      res.send(faculty);
-    })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
+    .then((faculty) => res.send(faculty))
+    .catch((err) => res.status(500).send(err));
 });
-app.post("/addsubject", (req, res) => {
-  const { subjectName, subjectcode } = req.body;
+
+app.post("/addSubject", (req, res) => {
+  const { subjectName, subjectCode, semester, division } = req.body;
+  console.log("Received request to add subject:", req.body);
+
+  if (!subjectName || !subjectCode || !semester || !division) {
+    console.log("Missing required fields");
+    return res.status(400).send({ message: "All fields are required" });
+  }
+
   const newSubject = new Subject({
     subjectName,
-    subjectcode,
+    subjectCode,
+    semester,
+    division,
   });
+
   newSubject
     .save()
-    .then(() => {
-      res.send({ message: "subject added successfully" });
-    })
+    .then(() => res.send({ message: "Subject added successfully" }))
     .catch((err) => {
-      res.status(500).send(err);
-    });
-});
-app.get("/subject", (req, res) => {
-  Subject.find()
-    .then((subject) => {
-      res.send(subject);
-    })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
-});
-//sem year
-app.post("/addsemester", (req, res) => {
-  const { semester, academicYear } = req.body;
-  const newSemester = new Semester({
-    semester,
-    academicYear,
-  });
-  newSemester
-    .save()
-    .then(() => {
-      res.send({ message: "Semester added successfully" });
-    })
-    .catch((err) => {
-      res.status(500).send(err);
-    });
-});
-app.get("/sem", (req, res) => {
-  Seme.find()
-    .then((semesters) => {
-      res.send(semesters);
-    })
-    .catch((err) => {
+      console.error("Error adding subject:", err);
       res.status(500).send(err);
     });
 });
 
-const PORT = process.env.PORT || 9002;
-app.listen(PORT, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+app.get("/subject", (req, res) => {
+  Subject.find()
+    .then((subject) => res.send(subject))
+    .catch((err) => res.status(500).send(err));
 });
+
+app.post("/generateTimetable", async (req, res) => {
+  const { semester, division } = req.body;
+  if (!semester || !division) {
+    return res
+      .status(400)
+      .send({ message: "Semester and division are required" });
+  }
+  try {
+    const existingTimetable = await Timetable.findOne({ semester, division });
+    if (existingTimetable) {
+      return res.status(400).send({
+        message: "Timetable already generated for this semester and division",
+      });
+    }
+    const subjects = await Subject.find({ semester, division });
+    const faculties = await Faculty.find();
+    if (!subjects.length || !faculties.length) {
+      return res
+        .status(400)
+        .send({ message: "Insufficient subjects or faculties available" });
+    }
+    const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+    const timeSlots = [
+      "09:00-10:00",
+      "10:00-11:00",
+      "11:00-12:00",
+      "13:00-14:00",
+      "14:00-15:00",
+      "15:00-16:00",
+    ];
+    const timetable = [];
+
+    days.forEach((day) => {
+      timeSlots.forEach((slot) => {
+        const randomSubject = _.sample(subjects);
+        const randomFaculty = _.sample(faculties);
+        timetable.push({
+          subjectName: randomSubject.subjectName,
+          facultyName: randomFaculty.facultyName,
+          day,
+          startTime: slot.split("-")[0],
+          endTime: slot.split("-")[1],
+          semester,
+          division,
+        });
+      });
+    });
+
+    await Timetable.insertMany(timetable);
+    res.send({ message: "Timetable generated successfully" });
+  } catch (error) {
+    res.status(500).send(error);
+  }
+});
+
+app.get("/timetable", (req, res) => {
+  Timetable.find()
+    .then((timetable) => res.send(timetable))
+    .catch((err) => res.status(500).send(err));
+});
+
+app.listen(9003, () => console.log("Server started at port 9003"));
