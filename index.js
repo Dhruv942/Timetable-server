@@ -212,8 +212,9 @@ app.post("/generateTimetable", async (req, res) => {
     }
 
     await Timetable.insertMany(timetable);
-    res.send({ message: "Timetable generated successfully" });
+    res.send({ message: "Timetable generated successfully", timetable }); // Sending the timetable in the response
   } catch (error) {
+    console.error("Error generating timetable:", error); // Logging the error
     res.status(500).send(error);
   }
 });
